@@ -12,6 +12,10 @@ LIB_DIR="$(cd "${SCRIPT_DIR}/../lib" && pwd)"
 # ライブラリの読み込み
 source "${LIB_DIR}/core/config.sh"
 source "${LIB_DIR}/core/logger.sh"
+source "${LIB_DIR}/core/parser.sh"
+source "${LIB_DIR}/git/worktree.sh"
+source "${LIB_DIR}/tmux/manager.sh"
+source "${LIB_DIR}/claude/executor.sh"
 
 # バージョン情報
 VERSION="0.1.0"
@@ -63,6 +67,18 @@ main() {
 
   local command="$1"
   shift
+
+  # init, version, help 以外のコマンドは設定ファイルを読み込む
+  if [[ "$command" != "init" ]] && [[ "$command" != "version" ]] && [[ "$command" != "--version" ]] && [[ "$command" != "-v" ]] && [[ "$command" != "help" ]] && [[ "$command" != "--help" ]] && [[ "$command" != "-h" ]]; then
+    # .wkdrc.yaml が存在する場合のみ読み込み
+    if [[ -f "$WKD_CONFIG_FILE" ]]; then
+      load_config
+    else
+      log_warn "設定ファイルが見つかりません: ${WKD_CONFIG_FILE}"
+      log_info "初期化してください: wkd init"
+      # 一部のコマンド（list等）は設定なしでも動作可能なので続行
+    fi
+  fi
 
   case "$command" in
     create)

@@ -208,3 +208,29 @@ EOF
 
   log_debug "Workerプロンプトを生成: ${output_file}"
 }
+
+# Claude Code Plan agentを実行
+execute_claude_plan() {
+  local prompt="$1"
+
+  log_debug "Claude Code Plan agentを実行中..."
+
+  # 一時ファイルにプロンプトを保存
+  local temp_prompt
+  temp_prompt=$(mktemp)
+  echo "$prompt" > "$temp_prompt"
+
+  # Claude Code Plan agentを実行
+  local output
+  if output=$("$CLAUDE_COMMAND" --agent plan "$(cat "$temp_prompt")" 2>&1); then
+    rm -f "$temp_prompt"
+    echo "$output"
+    return 0
+  else
+    local exit_code=$?
+    rm -f "$temp_prompt"
+    log_error "Claude Code Plan agentの実行に失敗しました (exit code: ${exit_code})"
+    echo "$output" >&2
+    return $exit_code
+  fi
+}
