@@ -1,0 +1,76 @@
+# Worker-driven Dev CLI 設定ファイル
+
+# リポジトリ情報
+repo: github.com/yourorg/your-repo
+defaultBranch: main
+packageManager: yarn
+node: 22
+
+# タスク管理
+tasks:
+  source: filesystem
+  directory: ./tasks
+  epicsDirectory: ./tasks/epics
+  format: markdown
+
+# Claude Code設定
+claude:
+  command: claude-code
+  headless:
+    enabled: true
+    flags:
+      - "--dangerously-skip-permissions"
+      - "--output-format stream-json"
+
+  # セキュリティ設定（各Workerの.claude/settings.jsonに適用）
+  settings:
+    deny:
+      # プロジェクト固有の追加禁止パターン
+      - "Bash(firebase deploy *)"
+      - "Bash(vercel deploy *)"
+      - "Write(**/config/database.yml)"
+      - "Edit(**/config/secrets.yaml)"
+
+# Workspace設定
+workspace:
+  root: ./.workspaces
+  strategy: worktree
+  branchPrefix: feat
+
+# ポリシー
+policies:
+  maxChangedLines: 400
+  allowedPaths:
+    - frontend/**
+    - be-api/**
+  deniedPaths:
+    - "**/.env*"
+    - "**/*.lock"
+    - "**/node_modules/**"
+  secretsScan: true
+
+# 並列実行設定
+parallel:
+  maxWorkers: 8
+  tmux:
+    sessionName: wkd
+    layout: tiled
+
+# 実行ステップ
+steps:
+  - kind: setup
+    cmd: corepack enable && yarn --immutable
+  - kind: generate
+    tool: claude-code
+  - kind: typecheck
+    cmd: yarn typecheck
+  - kind: test
+    cmd: yarn test --run
+  - kind: lint
+    cmd: yarn lint --fix
+  - kind: commit
+    cmd: git add -A && git commit -m "feat: {{title}} [{{id}}]"
+  - kind: push
+    cmd: git push --set-upstream origin HEAD
+  - kind: open_pr
+    cmd: gh pr create --fill --label worker

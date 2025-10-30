@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+
+# Worker-driven Dev CLI
+# メインエントリーポイント
+
+set -euo pipefail
+
+# スクリプトのディレクトリを取得
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$(cd "${SCRIPT_DIR}/../lib" && pwd)"
+
+# ライブラリの読み込み
+source "${LIB_DIR}/core/config.sh"
+source "${LIB_DIR}/core/logger.sh"
+
+# バージョン情報
+VERSION="0.1.0"
+
+# ヘルプメッセージ
+show_help() {
+  cat <<EOF
+Worker-driven Dev CLI v${VERSION}
+
+Usage:
+  wkd <command> [options]
+
+Commands:
+  create tasks <epic-name>     Epic を Task に分割
+  run <task-dir>               Task を Worker に分割して実行
+  dash                         ダッシュボード表示（進捗監視）
+  list <type>                  一覧表示 (epics|tasks|workers)
+  attach                       tmux セッションにアタッチ
+  logs <worker-id>             Worker のログ表示
+  retry [--failed|worker-id]   Worker を再実行
+  stats                        統計情報表示
+  init                         .wkdrc.yaml を初期化
+  version                      バージョン表示
+  help                         このヘルプを表示
+
+Examples:
+  wkd create tasks workspace-onboarding
+  wkd run workspace-management
+  wkd dash
+  wkd list workers
+  wkd retry --failed
+
+For more information, see: https://github.com/yourorg/worker-driven
+EOF
+}
+
+# バージョン表示
+show_version() {
+  echo "Worker-driven Dev CLI v${VERSION}"
+}
+
+# メインコマンド処理
+main() {
+  # 引数なしの場合はヘルプ表示
+  if [[ $# -eq 0 ]]; then
+    show_help
+    exit 0
+  fi
+
+  local command="$1"
+  shift
+
+  case "$command" in
+    create)
+      if [[ $# -eq 0 ]]; then
+        log_error "Usage: wkd create tasks <epic-name>"
+        exit 1
+      fi
+
+      local subcommand="$1"
+      shift
+
+      case "$subcommand" in
+        tasks)
+          source "${LIB_DIR}/commands/create.sh"
+          create_tasks "$@"
+          ;;
+        *)
+          log_error "Unknown create subcommand: ${subcommand}"
+          exit 1
+          ;;
+      esac
+      ;;
+
+    run)
+      source "${LIB_DIR}/commands/run.sh"
+      run_task "$@"
+      ;;
+
+    dash|dashboard)
+      source "${LIB_DIR}/commands/dash.sh"
+      show_dashboard "$@"
+      ;;
+
+    list)
+      source "${LIB_DIR}/commands/list.sh"
+      list_items "$@"
+      ;;
+
+    attach)
+      source "${LIB_DIR}/commands/attach.sh"
+      attach_tmux "$@"
+      ;;
+
+    logs)
+      source "${LIB_DIR}/commands/logs.sh"
+      show_logs "$@"
+      ;;
+
+    retry)
+      source "${LIB_DIR}/commands/retry.sh"
+      retry_workers "$@"
+      ;;
+
+    stats)
+      source "${LIB_DIR}/commands/stats.sh"
+      show_stats "$@"
+      ;;
+
+    init)
+      source "${LIB_DIR}/commands/init.sh"
+      init_config "$@"
+      ;;
+
+    version|--version|-v)
+      show_version
+      ;;
+
+    help|--help|-h)
+      show_help
+      ;;
+
+    *)
+      log_error "Unknown command: ${command}"
+      echo ""
+      show_help
+      exit 1
+      ;;
+  esac
+}
+
+# スクリプト実行
+main "$@"

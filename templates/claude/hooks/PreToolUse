@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# PreToolUse Hook: deny-check
+# Claude Code がツールを実行する前に、denyパターンに該当しないかチェック
+
+TOOL_NAME="$1"
+TOOL_ARGS="$2"
+
+# settings.jsonのパスを設定
+SETTINGS_FILE="${SETTINGS_FILE:-.claude/settings.json}"
+
+# settings.jsonが存在しない場合は許可
+if [[ ! -f "$SETTINGS_FILE" ]]; then
+  exit 0
+fi
+
+# jqが利用可能かチェック
+if ! command -v jq >/dev/null 2>&1; then
+  # jqがない場合はチェックをスキップ
+  exit 0
+fi
+
+# denyパターンを読み込み
+DENY_PATTERNS=$(jq -r '.permissions.deny[]' "$SETTINGS_FILE" 2>/dev/null)
+
+# パターンが存在しない場合は許可
+if [[ -z "$DENY_PATTERNS" ]]; then
+  exit 0
+fi
+
+# 実行しようとしているコマンドの形式
+COMMAND_PATTERN="${TOOL_NAME}(${TOOL_ARGS})"
+
+# パターンマッチング
+while IFS= read -r pattern; do
+  # ワイルドカードを考慮したパターンマッチ
+  # パターンの * を .* に変換して正規表現として扱う
+  pattern_regex=$(echo "$pattern" | sed 's/\*/.*/')
+
+  if [[ "$COMMAND_PATTERN" =~ ^${pattern_regex}$ ]]; then
+    echo "❌ 拒否: このコマンドは実行できません" >&2
+    echo "コマンド: ${COMMAND_PATTERN}" >&2
+    echo "パターン: ${pattern}" >&2
+    echo "理由: セキュリティポリシーにより禁止されています" >&2
+    exit 1
+  fi
+done <<< "$DENY_PATTERNS"
+
+# すべてのパターンにマッチしなければ許可
+exit 0
