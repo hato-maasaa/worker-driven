@@ -6,6 +6,11 @@ defaultBranch: main
 packageManager: yarn
 node: 22
 
+# GitHub設定
+github:
+  token: ""  # 環境変数 GITHUB_TOKEN または設定ファイルで指定
+  repo: ""   # owner/repo 形式 (例: yourorg/your-repo)
+
 # タスク管理
 tasks:
   source: filesystem

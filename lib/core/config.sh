@@ -11,6 +11,9 @@ DEFAULT_BRANCH="main"
 PACKAGE_MANAGER="yarn"
 NODE_VERSION="22"
 
+CONFIG_GITHUB_TOKEN=""
+CONFIG_GITHUB_REPO=""
+
 TASKS_DIR="./tasks"
 TASKS_EPICS_DIR="./tasks/epics"
 
@@ -55,6 +58,10 @@ load_config_with_yq() {
   PACKAGE_MANAGER=$(yq eval '.packageManager' "$config_file" 2>/dev/null || echo "yarn")
   NODE_VERSION=$(yq eval '.node' "$config_file" 2>/dev/null || echo "22")
 
+  # GitHub設定（環境変数を優先）
+  CONFIG_GITHUB_TOKEN="${GITHUB_TOKEN:-$(yq eval '.github.token' "$config_file" 2>/dev/null || echo "")}"
+  CONFIG_GITHUB_REPO="${GITHUB_REPO:-$(yq eval '.github.repo' "$config_file" 2>/dev/null || echo "")}"
+
   TASKS_DIR=$(yq eval '.tasks.directory' "$config_file" 2>/dev/null || echo "./tasks")
   TASKS_EPICS_DIR=$(yq eval '.tasks.epicsDirectory' "$config_file" 2>/dev/null || echo "./tasks/epics")
 
@@ -86,6 +93,12 @@ load_config_with_sed() {
   DEFAULT_BRANCH=$(grep '^defaultBranch:' "$config_file" | cut -d':' -f2- | xargs || echo "main")
   PACKAGE_MANAGER=$(grep '^packageManager:' "$config_file" | cut -d':' -f2- | xargs || echo "yarn")
   NODE_VERSION=$(grep '^node:' "$config_file" | cut -d':' -f2- | xargs || echo "22")
+
+  # GitHub設定（環境変数を優先）
+  local github_token_from_file=$(grep '^\s*token:' "$config_file" | head -1 | cut -d':' -f2- | xargs || echo "")
+  local github_repo_from_file=$(grep '^\s*repo:' "$config_file" | grep -A 10 '^github:' | grep '^\s*repo:' | cut -d':' -f2- | xargs || echo "")
+  CONFIG_GITHUB_TOKEN="${GITHUB_TOKEN:-$github_token_from_file}"
+  CONFIG_GITHUB_REPO="${GITHUB_REPO:-$github_repo_from_file}"
 
   TASKS_DIR=$(grep '^\s*directory:' "$config_file" | head -1 | cut -d':' -f2- | xargs || echo "./tasks")
   TASKS_EPICS_DIR=$(grep '^\s*epicsDirectory:' "$config_file" | head -1 | cut -d':' -f2- | xargs || echo "./tasks/epics")
@@ -130,7 +143,7 @@ load_config() {
 
 # 設定の検証
 validate_config() {
-  local errors=()
+  VALIDATION_ERRORS=()
 
   # 必須ディレクトリの確認
   if [[ ! -d "$TASKS_EPICS_DIR" ]]; then
@@ -140,6 +153,53 @@ validate_config() {
   # Claude Codeコマンドの確認
   if ! command -v "$CLAUDE_COMMAND" >/dev/null 2>&1; then
     log_debug "Claude Code CLI が見つかりません: ${CLAUDE_COMMAND}"
+  fi
+
+  # GitHub Token の検証
+  if [[ -n "$CONFIG_GITHUB_TOKEN" ]]; then
+    # 形式チェック（ghp_, gho_, ghs_, ghr_, github_pat_ で始まるトークン）
+    if [[ ! "$CONFIG_GITHUB_TOKEN" =~ ^(ghp_|gho_|ghs_|ghr_|github_pat_) ]]; then
+      VALIDATION_ERRORS+=("GitHub Token の形式が不正です。有効なプレフィックス（ghp_, gho_, ghs_, ghr_, github_pat_）で始まる必要があります。")
+    fi
+
+    # 長さチェック（最低40文字）
+    if [[ ${#CONFIG_GITHUB_TOKEN} -lt 40 ]]; then
+      VALIDATION_ERRORS+=("GitHub Token が短すぎます（最低40文字必要、現在: ${#CONFIG_GITHUB_TOKEN}文字）")
+    fi
+  fi
+
+  # GitHub Repo の検証
+  if [[ -n "$CONFIG_GITHUB_REPO" ]]; then
+    # スラッシュの数をカウント
+    local slash_count=$(echo "$CONFIG_GITHUB_REPO" | tr -cd '/' | wc -c | xargs)
+
+    # スラッシュが1つだけであることを確認
+    if [[ "$slash_count" -ne 1 ]]; then
+      VALIDATION_ERRORS+=("GitHub Repo は 'owner/repo' 形式である必要があります（スラッシュは1つのみ）")
+    else
+      # owner名とrepo名を抽出
+      local owner="${CONFIG_GITHUB_REPO%%/*}"
+      local repo="${CONFIG_GITHUB_REPO##*/}"
+
+      # owner名が空でないことを確認
+      if [[ -z "$owner" ]]; then
+        VALIDATION_ERRORS+=("GitHub Repo の owner 名が空です")
+      fi
+
+      # repo名が空でないことを確認
+      if [[ -z "$repo" ]]; then
+        VALIDATION_ERRORS+=("GitHub Repo の repo 名が空です")
+      fi
+    fi
+  fi
+
+  # エラーがある場合は表示
+  if [[ ${#VALIDATION_ERRORS[@]} -gt 0 ]]; then
+    log_error "設定の検証エラー:"
+    for error in "${VALIDATION_ERRORS[@]}"; do
+      log_error "  - $error"
+    done
+    return 1
   fi
 
   return 0
