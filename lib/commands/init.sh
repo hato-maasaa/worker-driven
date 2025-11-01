@@ -16,7 +16,7 @@ init_config() {
   fi
 
   # テンプレートから設定ファイルをコピー
-  local template_file="${SCRIPT_DIR}/.wkdrc.yaml.example"
+  local template_file="${SCRIPT_DIR}/../.wkdrc.yaml.example"
 
   if [[ ! -f "$template_file" ]]; then
     log_error "設定ファイルのテンプレートが見つかりません: ${template_file}"
