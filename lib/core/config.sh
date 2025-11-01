@@ -129,10 +129,60 @@ load_config() {
 }
 
 # 設定の検証
-validate_config() {
-  local errors=()
+# グローバル変数 VALIDATION_ERRORS にエラーメッセージを格納
+declare -a VALIDATION_ERRORS=()
 
-  # 必須ディレクトリの確認
+validate_config() {
+  VALIDATION_ERRORS=()
+
+  # 必須フィールドの確認
+  if [[ -z "$REPO" ]]; then
+    VALIDATION_ERRORS+=("REPO は必須です")
+  fi
+
+  if [[ -z "$DEFAULT_BRANCH" ]]; then
+    VALIDATION_ERRORS+=("DEFAULT_BRANCH は必須です")
+  fi
+
+  if [[ -z "$TASKS_DIR" ]]; then
+    VALIDATION_ERRORS+=("TASKS_DIR は必須です")
+  fi
+
+  if [[ -z "$TASKS_EPICS_DIR" ]]; then
+    VALIDATION_ERRORS+=("TASKS_EPICS_DIR は必須です")
+  fi
+
+  if [[ -z "$WORKSPACE_ROOT" ]]; then
+    VALIDATION_ERRORS+=("WORKSPACE_ROOT は必須です")
+  fi
+
+  # ディレクトリパス形式の検証（相対パスまたは絶対パス）
+  if [[ -n "$TASKS_DIR" ]] && [[ ! "$TASKS_DIR" =~ ^(\./|/|\.\./|~/) ]]; then
+    VALIDATION_ERRORS+=("TASKS_DIR は有効なディレクトリパス形式ではありません: ${TASKS_DIR}")
+  fi
+
+  if [[ -n "$TASKS_EPICS_DIR" ]] && [[ ! "$TASKS_EPICS_DIR" =~ ^(\./|/|\.\./|~/) ]]; then
+    VALIDATION_ERRORS+=("TASKS_EPICS_DIR は有効なディレクトリパス形式ではありません: ${TASKS_EPICS_DIR}")
+  fi
+
+  if [[ -n "$WORKSPACE_ROOT" ]] && [[ ! "$WORKSPACE_ROOT" =~ ^(\./|/|\.\./|~/) ]]; then
+    VALIDATION_ERRORS+=("WORKSPACE_ROOT は有効なディレクトリパス形式ではありません: ${WORKSPACE_ROOT}")
+  fi
+
+  # GitHubリポジトリ形式の検証（owner/repo）
+  if [[ -n "$REPO" ]] && [[ ! "$REPO" =~ ^[a-zA-Z0-9_-]+/[a-zA-Z0-9._-]+$ ]]; then
+    VALIDATION_ERRORS+=("REPO は有効なGitHubリポジトリ形式（owner/repo）ではありません: ${REPO}")
+  fi
+
+  # エラーがある場合は失敗
+  if [[ ${#VALIDATION_ERRORS[@]} -gt 0 ]]; then
+    for error in "${VALIDATION_ERRORS[@]}"; do
+      log_error "設定エラー: ${error}"
+    done
+    return 1
+  fi
+
+  # 警告レベルのチェック（必須ディレクトリの存在確認）
   if [[ ! -d "$TASKS_EPICS_DIR" ]]; then
     log_debug "Epic ディレクトリが存在しません: ${TASKS_EPICS_DIR}"
   fi
