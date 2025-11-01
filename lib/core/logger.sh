@@ -23,8 +23,25 @@ else
   COLOR_GRAY=""
 fi
 
-# ログレベル
-LOG_LEVEL="${LOG_LEVEL:-INFO}"
+# ログレベル定義
+declare -A LOG_LEVELS=(
+  [DEBUG]=0
+  [INFO]=1
+  [WARN]=2
+  [ERROR]=3
+)
+
+# 現在のログレベル
+CURRENT_LOG_LEVEL="${LOG_LEVEL:-INFO}"
+
+# ログレベルチェック関数
+should_log() {
+  local level="$1"
+  local current_level_value="${LOG_LEVELS[$CURRENT_LOG_LEVEL]:-1}"
+  local target_level_value="${LOG_LEVELS[$level]:-1}"
+
+  [[ $current_level_value -le $target_level_value ]]
+}
 
 # エラーログ
 log_error() {
@@ -33,7 +50,9 @@ log_error() {
 
 # 警告ログ
 log_warn() {
-  echo -e "${COLOR_YELLOW}⚠️  Warning:${COLOR_RESET} $*" >&2
+  if should_log "WARN"; then
+    echo -e "${COLOR_YELLOW}⚠️  Warning:${COLOR_RESET} $*" >&2
+  fi
 }
 
 # 情報ログ
