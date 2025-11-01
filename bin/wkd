@@ -32,6 +32,7 @@ Commands:
   create tasks <epic-name>     Epic を Task に分割
   run <task-dir>               Task を Worker に分割して実行
   status [session|worker-id]   ワークスペース/ワーカーの実行状況表示
+  cleanup [options]            完了したワーカーをクリーンアップ
   dash                         ダッシュボード表示（進捗監視）
   list <type>                  一覧表示 (epics|tasks|workers)
   attach                       tmux セッションにアタッチ
@@ -48,6 +49,8 @@ Examples:
   wkd status                              # 全ワークスペースの状況
   wkd status wkd-workspace-cleanup-TASK-001  # 特定セッションの状況
   wkd status WRK-001                      # 特定ワーカーの詳細
+  wkd cleanup                             # 完了したワーカーをクリーンアップ
+  wkd cleanup --dry-run                   # 削除対象を確認
   wkd dash
   wkd list workers
   wkd retry --failed
@@ -150,6 +153,43 @@ main() {
       else
         show_status "$1"
       fi
+      ;;
+
+    cleanup)
+      source "${LIB_DIR}/commands/cleanup.sh"
+
+      # オプション解析
+      local keep_branches="false"
+      local dry_run="false"
+      local clean_tmux="true"
+
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --keep-branches)
+            keep_branches="true"
+            shift
+            ;;
+          --dry-run)
+            dry_run="true"
+            shift
+            ;;
+          --no-tmux)
+            clean_tmux="false"
+            shift
+            ;;
+          -h|--help)
+            show_cleanup_help
+            exit 0
+            ;;
+          *)
+            log_error "Unknown option: $1"
+            show_cleanup_help
+            exit 1
+            ;;
+        esac
+      done
+
+      cleanup_all "$keep_branches" "$dry_run" "$clean_tmux"
       ;;
 
     init)
