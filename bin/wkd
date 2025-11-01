@@ -31,6 +31,7 @@ Usage:
 Commands:
   create tasks <epic-name>     Epic を Task に分割
   run <task-dir>               Task を Worker に分割して実行
+  status [session|worker-id]   ワークスペース/ワーカーの実行状況表示
   dash                         ダッシュボード表示（進捗監視）
   list <type>                  一覧表示 (epics|tasks|workers)
   attach                       tmux セッションにアタッチ
@@ -44,6 +45,9 @@ Commands:
 Examples:
   wkd create tasks workspace-onboarding
   wkd run workspace-management
+  wkd status                              # 全ワークスペースの状況
+  wkd status wkd-workspace-cleanup-TASK-001  # 特定セッションの状況
+  wkd status WRK-001                      # 特定ワーカーの詳細
   wkd dash
   wkd list workers
   wkd retry --failed
@@ -135,6 +139,17 @@ main() {
     stats)
       source "${LIB_DIR}/commands/stats.sh"
       show_stats "$@"
+      ;;
+
+    status)
+      source "${LIB_DIR}/commands/status.sh"
+      if [[ $# -eq 0 ]]; then
+        show_status
+      elif [[ "$1" == WRK-* ]]; then
+        show_worker_detail "$1"
+      else
+        show_status "$1"
+      fi
       ;;
 
     init)
