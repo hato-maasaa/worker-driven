@@ -259,11 +259,18 @@ EOF
     local worker_prompt
     worker_prompt=$(jq -r '.prompt' "$metadata_file")
 
-    local worktree_dir="${WORKSPACE_ROOT}/${worker_id}"
+    # worktree_dirを絶対パスに変換（tmuxペインから実行するため）
+    local worktree_dir
+    worktree_dir=$(cd "${WORKSPACE_ROOT}/${worker_id}" 2>/dev/null && pwd)
+
+    if [[ -z "$worktree_dir" ]]; then
+      log_error "Worktreeディレクトリが見つかりません: ${worker_id}"
+      continue
+    fi
 
     # Claude Codeをヘッドレスモードで実行するコマンドを生成
     local claude_command
-    claude_command="cd ${worktree_dir} && ${CLAUDE_COMMAND} --headless \"${worker_prompt}\""
+    claude_command="cd '${worktree_dir}' && ${CLAUDE_COMMAND} --headless \"${worker_prompt}\""
 
     # tmuxペインにコマンドを送信
     send_to_pane "$session_name" "$i" "$claude_command"
