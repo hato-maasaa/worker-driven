@@ -271,15 +271,22 @@ EOF
     # Claude Codeを非インタラクティブモードで実行するコマンドを生成
     # -p: print mode (非インタラクティブ)
     # --dangerously-skip-permissions: 自動実行のため権限チェックをスキップ
-    # 実行後に自動的にステータスを更新
+    # 実行後に自動的にステータスを更新し、git commit & pushを実行
     local project_root
     project_root=$(pwd)
 
     local metadata_path="${project_root}/${workers_metadata_dir}/${worker_id}.json"
     local update_status_cmd="jq '.status = \"completed\" | .completedAt = \"'\$(date -u +%Y-%m-%dT%H:%M:%SZ)'\"' '${metadata_path}' > '${metadata_path}.tmp' && mv '${metadata_path}.tmp' '${metadata_path}'"
 
+    # Git commit & pushコマンド
+    local git_commit_push_cmd="git add -A && git diff --cached --quiet || (git commit -m 'feat: Worker作業完了
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>' && git push -u origin HEAD)"
+
     local claude_command
-    claude_command="cd '${worktree_dir}' && ${CLAUDE_COMMAND} -p --dangerously-skip-permissions \"${worker_prompt}\" && ${update_status_cmd} || echo '❌ Worker failed'"
+    claude_command="cd '${worktree_dir}' && ${CLAUDE_COMMAND} -p --dangerously-skip-permissions \"${worker_prompt}\" && ${update_status_cmd} && ${git_commit_push_cmd} || echo '❌ Worker failed'"
 
     # tmuxペインにコマンドを送信
     send_to_pane "$session_name" "$i" "$claude_command"
