@@ -23,6 +23,15 @@ else
   COLOR_GRAY=""
 fi
 
+# ログレベル定数
+readonly LOG_LEVEL_DEBUG=0
+readonly LOG_LEVEL_INFO=1
+readonly LOG_LEVEL_WARN=2
+readonly LOG_LEVEL_ERROR=3
+
+# 現在のログレベル（デフォルト: INFO）
+CURRENT_LOG_LEVEL=${LOG_LEVEL_INFO}
+
 # ログレベル
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
 
