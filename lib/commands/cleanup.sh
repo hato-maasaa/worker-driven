@@ -97,6 +97,102 @@ cleanup_completed_workers() {
   return 0
 }
 
+# 完了したタスクディレクトリのクリーンアップ
+cleanup_completed_tasks() {
+  local dry_run="${1:-false}"
+
+  log_section "タスクディレクトリクリーンアップ"
+
+  if [[ ! -d "tasks" ]]; then
+    log_info "tasksディレクトリが存在しません"
+    return 0
+  fi
+
+  local total_tasks=0
+  local completed_tasks=0
+  local cleaned_tasks=0
+
+  # 各epicディレクトリをスキャン
+  for epic_dir in tasks/*/; do
+    if [[ ! -d "$epic_dir" ]]; then
+      continue
+    fi
+
+    local epic_name
+    epic_name=$(basename "$epic_dir")
+
+    # epicディレクトリ内のタスクファイルをスキャン
+    for task_file in "${epic_dir}"TASK-*.md; do
+      if [[ ! -f "$task_file" ]]; then
+        continue
+      fi
+
+      ((total_tasks++))
+
+      local task_id
+      task_id=$(basename "$task_file" .md)
+
+      # このタスクに属するワーカーをチェック
+      local task_workers=0
+      local completed_workers=0
+
+      if [[ -d ".workspaces/.workers" ]]; then
+        for worker_file in .workspaces/.workers/WRK-*.json; do
+          if [[ ! -f "$worker_file" ]]; then
+            continue
+          fi
+
+          local worker_task_id worker_epic_id worker_status
+          worker_task_id=$(jq -r '.taskId' "$worker_file" 2>/dev/null || echo "")
+          worker_epic_id=$(jq -r '.epicId' "$worker_file" 2>/dev/null || echo "")
+          worker_status=$(jq -r '.status' "$worker_file" 2>/dev/null || echo "")
+
+          if [[ "$worker_task_id" == "$task_id" ]] && [[ "$worker_epic_id" == "$epic_name" ]]; then
+            ((task_workers++))
+            if [[ "$worker_status" == "completed" ]]; then
+              ((completed_workers++))
+            fi
+          fi
+        done
+      fi
+
+      # ワーカーが存在しない、または全て完了している場合
+      if [[ $task_workers -eq 0 ]] || [[ $task_workers -eq $completed_workers && $task_workers -gt 0 ]]; then
+        ((completed_tasks++))
+
+        if [[ "$dry_run" == "true" ]]; then
+          log_info "[DRY RUN] 削除対象タスク: ${epic_name}/${task_id} (ワーカー: ${completed_workers}/${task_workers})"
+        else
+          log_step "削除中: ${epic_name}/${task_id}"
+          rm -f "$task_file"
+          log_success "削除完了: ${epic_name}/${task_id}"
+          ((cleaned_tasks++))
+        fi
+      else
+        log_debug "実行中のためスキップ: ${epic_name}/${task_id} (完了: ${completed_workers}/${task_workers})"
+      fi
+    done
+
+    # epicディレクトリが空になった場合は削除
+    if [[ "$dry_run" == "false" ]]; then
+      if [[ -d "$epic_dir" ]] && [[ -z "$(ls -A "$epic_dir" 2>/dev/null)" ]]; then
+        rmdir "$epic_dir" 2>/dev/null && log_debug "空のepicディレクトリを削除: ${epic_name}"
+      fi
+    fi
+  done
+
+  echo ""
+  if [[ $cleaned_tasks -gt 0 ]] || [[ "$dry_run" == "true" && $completed_tasks -gt 0 ]]; then
+    log_info "合計タスク数: ${total_tasks}"
+    log_info "  - 完了済み: ${completed_tasks}"
+    log_info "  - クリーンアップ: ${cleaned_tasks}"
+  else
+    log_info "クリーンアップ対象のタスクはありません"
+  fi
+
+  return 0
+}
+
 # tmuxセッションのクリーンアップ
 cleanup_tmux_sessions() {
   local dry_run="${1:-false}"
@@ -151,6 +247,9 @@ cleanup_all() {
   # ワーカークリーンアップ
   cleanup_completed_workers "$keep_branches" "$dry_run"
 
+  # タスクディレクトリクリーンアップ
+  cleanup_completed_tasks "$dry_run"
+
   # tmuxセッションクリーンアップ
   if [[ "$clean_tmux" == "true" ]]; then
     cleanup_tmux_sessions "$dry_run"
@@ -181,9 +280,11 @@ Description:
   このコマンドは以下をクリーンアップします：
   - 完了したワーカーのworktree
   - 完了したワーカーのメタデータ
+  - 完了したタスクのディレクトリ (tasks/<epic>/<task>.md)
   - 未使用のtmuxセッション
   - （オプション）ローカルブランチ
 
   実行中または待機中のワーカーは削除されません。
+  全てのワーカーが完了したタスクのみ削除されます。
 EOF
 }
