@@ -210,18 +210,19 @@ EOF
 execute_claude_plan() {
   local prompt="$1"
 
-  log_debug "Claude Code Plan agentを実行中..."
+  # デバッグメッセージは標準エラーに出力（標準出力を汚染しない）
+  log_debug "Claude Code Plan agentを実行中..." >&2
 
   # Claude Codeを通常モードで実行（-pフラグでプロンプトを渡す）
   # plan modeは対話的になるため使用しない
+  # 標準エラーは破棄して、標準出力のみ取得
   local output
-  if output=$("$CLAUDE_COMMAND" -p "$prompt" 2>&1); then
+  if output=$("$CLAUDE_COMMAND" -p "$prompt" 2>/dev/null); then
     echo "$output"
     return 0
   else
     local exit_code=$?
     log_error "Claude Code Plan agentの実行に失敗しました (exit code: ${exit_code})"
-    echo "$output" >&2
     return $exit_code
   fi
 }

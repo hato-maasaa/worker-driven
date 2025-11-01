@@ -133,6 +133,10 @@ EOF_PROMPT
     return 1
   fi
 
+  # デバッグ: Claudeの生出力を保存
+  echo "$plan_output" > /tmp/wkd-claude-output.txt
+  log_debug "Claude出力を保存: /tmp/wkd-claude-output.txt"
+
   # JSON部分を抽出（```json ... ``` で囲まれている場合）
   local tasks_json
   tasks_json=$(echo "$plan_output" | sed -n '/```json/,/```/p' | sed '1d;$d')
@@ -142,10 +146,17 @@ EOF_PROMPT
     tasks_json="$plan_output"
   fi
 
+  # デバッグ: 抽出されたJSONを保存
+  echo "$tasks_json" > /tmp/wkd-tasks-json.txt
+  log_debug "抽出JSON を保存: /tmp/wkd-tasks-json.txt"
+
   # JSONの妥当性チェック
   if ! echo "$tasks_json" | jq empty 2>/dev/null; then
     log_error "Claude Codeからの出力がJSON形式ではありません"
-    log_debug "出力: ${plan_output}"
+    log_debug "出力の最初の10行:"
+    echo "$tasks_json" | head -10 | while IFS= read -r line; do
+      log_debug "  $line"
+    done
     return 1
   fi
 
@@ -177,16 +188,14 @@ EOF_PROMPT
     local task_lines
 
     task_id=$(echo "$task_data" | jq -r '.id')
-    task_title=$(echo "$task_data" | jq -r '.title')
-    task_description=$(echo "$task_data" | jq -r '.description')
-    task_criteria=$(echo "$task_data" | jq -r '.acceptance_criteria[]' 2>/dev/null || echo "")
-    task_dependencies=$(echo "$task_data" | jq -r '.dependencies[]' 2>/dev/null || echo "")
-    task_lines=$(echo "$task_data" | jq -r '.estimated_lines // 0')
 
     # タスクファイルを生成
     local task_file="${tasks_dir}/${task_id}.md"
 
-    generate_task_markdown "$task_id" "$task_title" "$task_description" "$task_criteria" "$task_dependencies" "$epic_id" "$task_lines" > "$task_file"
+    # task_dataにdirectoryとepicフィールドを追加
+    task_data=$(echo "$task_data" | jq --arg dir "$task_id" --arg epic "$epic_id" '. + {directory: $dir, epic: $epic}')
+
+    generate_task_markdown "$task_data" "$epic_file" > "$task_file"
 
     if [[ -f "$task_file" ]]; then
       log_success "作成: ${task_file}"

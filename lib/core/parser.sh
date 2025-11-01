@@ -210,12 +210,16 @@ generate_task_markdown() {
   local task_priority
   task_priority=$(echo "$task_json" | jq -r '.priority // "medium"')
 
-  # Epic情報の抽出
-  local epic_frontmatter
-  epic_frontmatter=$(extract_frontmatter "$epic_file")
-
+  # Epic情報の抽出（task_jsonに含まれていればそれを使用）
   local epic_name
-  epic_name=$(get_frontmatter_value "$epic_frontmatter" "epic")
+  epic_name=$(echo "$task_json" | jq -r '.epic // empty')
+
+  # task_jsonにepicがない場合、epic_fileのfrontmatterから取得
+  if [[ -z "$epic_name" ]]; then
+    local epic_frontmatter
+    epic_frontmatter=$(extract_frontmatter "$epic_file")
+    epic_name=$(get_frontmatter_value "$epic_frontmatter" "epic")
+  fi
 
   # task.md の生成
   cat <<EOF
