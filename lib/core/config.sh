@@ -125,21 +125,91 @@ load_config() {
   fi
 
   # 設定の検証
-  validate_config
+  if ! validate_config; then
+    # 検証エラーがある場合は処理を中断
+    return 1
+  fi
+
+  log_debug "設定の検証が完了しました"
+  return 0
 }
 
 # 設定の検証
+#
+# 概要:
+#   設定ファイルから読み込まれた設定値を検証し、必須条件を満たしているか確認する。
+#   検証エラーがある場合はVALIDATION_ERRORS配列にエラーメッセージを追加し、
+#   エラーログを出力して処理を中断する。
+#
+# 引数:
+#   なし
+#
+# 戻り値:
+#   0: 検証成功（エラーなし）
+#   1: 検証失敗（エラーあり）
+#
+# 使用する変数:
+#   - TASKS_DIR: タスクディレクトリのパス
+#   - TASKS_EPICS_DIR: Epicディレクトリのパス
+#   - CLAUDE_COMMAND: Claude CLIコマンド名
+#   - WORKSPACE_ROOT: ワークスペースルートディレクトリ
+#   - MAX_CHANGED_LINES: 最大変更行数
+#   - MAX_WORKERS: 最大ワーカー数
+#   - VALIDATION_ERRORS: 検証エラーメッセージを格納する配列（グローバル）
+#
 validate_config() {
-  local errors=()
+  # エラー配列を初期化
+  VALIDATION_ERRORS=()
 
-  # 必須ディレクトリの確認
-  if [[ ! -d "$TASKS_EPICS_DIR" ]]; then
-    log_debug "Epic ディレクトリが存在しません: ${TASKS_EPICS_DIR}"
+  # 必須設定値の確認
+  if [[ -z "$TASKS_DIR" ]]; then
+    VALIDATION_ERRORS+=("設定エラー: tasks.directory が設定されていません")
   fi
 
-  # Claude Codeコマンドの確認
-  if ! command -v "$CLAUDE_COMMAND" >/dev/null 2>&1; then
-    log_debug "Claude Code CLI が見つかりません: ${CLAUDE_COMMAND}"
+  if [[ -z "$TASKS_EPICS_DIR" ]]; then
+    VALIDATION_ERRORS+=("設定エラー: tasks.epicsDirectory が設定されていません")
+  fi
+
+  if [[ -z "$CLAUDE_COMMAND" ]]; then
+    VALIDATION_ERRORS+=("設定エラー: claude.command が設定されていません")
+  fi
+
+  if [[ -z "$WORKSPACE_ROOT" ]]; then
+    VALIDATION_ERRORS+=("設定エラー: workspace.root が設定されていません")
+  fi
+
+  # 数値型設定の検証
+  if [[ -n "$MAX_CHANGED_LINES" ]] && ! [[ "$MAX_CHANGED_LINES" =~ ^[0-9]+$ ]]; then
+    VALIDATION_ERRORS+=("設定エラー: policies.maxChangedLines は数値である必要があります: ${MAX_CHANGED_LINES}")
+  fi
+
+  if [[ -n "$MAX_WORKERS" ]] && ! [[ "$MAX_WORKERS" =~ ^[0-9]+$ ]]; then
+    VALIDATION_ERRORS+=("設定エラー: parallel.maxWorkers は数値である必要があります: ${MAX_WORKERS}")
+  fi
+
+  # Claude Codeコマンドの存在確認
+  if [[ -n "$CLAUDE_COMMAND" ]] && ! command -v "$CLAUDE_COMMAND" >/dev/null 2>&1; then
+    VALIDATION_ERRORS+=("警告: Claude Code CLI が見つかりません: ${CLAUDE_COMMAND}")
+    VALIDATION_ERRORS+=("  インストール方法: https://docs.claude.com/en/docs/claude-code")
+  fi
+
+  # ディレクトリの存在確認（警告レベル）
+  if [[ -n "$TASKS_EPICS_DIR" ]] && [[ ! -d "$TASKS_EPICS_DIR" ]]; then
+    log_debug "Epic ディレクトリが存在しません（必要に応じて作成されます）: ${TASKS_EPICS_DIR}"
+  fi
+
+  # エラーがある場合は表示して終了
+  if [[ ${#VALIDATION_ERRORS[@]} -gt 0 ]]; then
+    log_error "設定ファイルの検証に失敗しました: ${WKD_CONFIG_FILE}"
+    echo ""
+    for error in "${VALIDATION_ERRORS[@]}"; do
+      log_error "$error"
+    done
+    echo ""
+    log_info "設定ファイルを確認してください: ${WKD_CONFIG_FILE}"
+    log_info "または以下のコマンドで初期化してください:"
+    log_info "  wkd init"
+    return 1
   fi
 
   return 0
