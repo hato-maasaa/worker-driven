@@ -130,7 +130,37 @@ load_config() {
 
 # 設定の検証
 validate_config() {
-  local errors=()
+  VALIDATION_ERRORS=()
+
+  # CONFIG_WORKTREE_BASE_DIR (WORKSPACE_ROOT) の検証
+  if [[ -n "$WORKSPACE_ROOT" ]]; then
+    # 絶対パスであることを確認（/で始まる）
+    if [[ ! "$WORKSPACE_ROOT" =~ ^\/ ]]; then
+      VALIDATION_ERRORS+=("WORKSPACE_ROOT は絶対パスである必要があります: ${WORKSPACE_ROOT}")
+    fi
+
+    # パスに不正な文字が含まれていないことを確認
+    # 許可する文字: 英数字、アンダースコア、ハイフン、ドット、スラッシュ
+    if [[ "$WORKSPACE_ROOT" =~ [^a-zA-Z0-9_/.\-] ]]; then
+      VALIDATION_ERRORS+=("WORKSPACE_ROOT に不正な文字が含まれています: ${WORKSPACE_ROOT}")
+    fi
+  fi
+
+  # CONFIG_TASKS_DIR (TASKS_DIR) の検証
+  if [[ -z "$TASKS_DIR" ]]; then
+    VALIDATION_ERRORS+=("TASKS_DIR が空です")
+  else
+    # 相対パスまたは絶対パスとして有効であることを確認
+    # パスに不正な文字が含まれていないことを確認
+    if [[ "$TASKS_DIR" =~ [^a-zA-Z0-9_/.\-] ]]; then
+      VALIDATION_ERRORS+=("TASKS_DIR に不正な文字が含まれています: ${TASKS_DIR}")
+    fi
+
+    # パスとして有効な形式であることを確認（連続するスラッシュなどをチェック）
+    if [[ "$TASKS_DIR" =~ // ]]; then
+      VALIDATION_ERRORS+=("TASKS_DIR に連続するスラッシュが含まれています: ${TASKS_DIR}")
+    fi
+  fi
 
   # 必須ディレクトリの確認
   if [[ ! -d "$TASKS_EPICS_DIR" ]]; then
@@ -140,6 +170,14 @@ validate_config() {
   # Claude Codeコマンドの確認
   if ! command -v "$CLAUDE_COMMAND" >/dev/null 2>&1; then
     log_debug "Claude Code CLI が見つかりません: ${CLAUDE_COMMAND}"
+  fi
+
+  # エラーがある場合はログ出力
+  if [[ ${#VALIDATION_ERRORS[@]} -gt 0 ]]; then
+    for error in "${VALIDATION_ERRORS[@]}"; do
+      log_error "設定検証エラー: ${error}"
+    done
+    return 1
   fi
 
   return 0
