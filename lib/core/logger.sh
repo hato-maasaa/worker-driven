@@ -23,8 +23,35 @@ else
   COLOR_GRAY=""
 fi
 
-# ログレベル
-LOG_LEVEL="${LOG_LEVEL:-INFO}"
+# ログレベル定数
+readonly ERROR=1
+readonly WARN=2
+readonly INFO=3
+readonly DEBUG=4
+
+# 現在のログレベル
+CURRENT_LOG_LEVEL="${CURRENT_LOG_LEVEL:-INFO}"
+
+# ログレベル名を数値に変換
+get_log_level_value() {
+  local level="$1"
+  case "$level" in
+    ERROR) echo "$ERROR" ;;
+    WARN) echo "$WARN" ;;
+    INFO) echo "$INFO" ;;
+    DEBUG) echo "$DEBUG" ;;
+    *) echo "$INFO" ;; # デフォルトはINFO
+  esac
+}
+
+# ログを出力すべきかどうかを判定
+should_log() {
+  local message_level="$1"
+  local current_level_value=$(get_log_level_value "$CURRENT_LOG_LEVEL")
+  local message_level_value=$(get_log_level_value "$message_level")
+
+  [[ $message_level_value -le $current_level_value ]]
+}
 
 # エラーログ
 log_error() {
@@ -48,7 +75,7 @@ log_success() {
 
 # デバッグログ
 log_debug() {
-  if [[ "$LOG_LEVEL" == "DEBUG" ]]; then
+  if should_log "DEBUG"; then
     echo -e "${COLOR_GRAY}🔍 Debug:${COLOR_RESET} $*" >&2
   fi
 }
