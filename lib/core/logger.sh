@@ -26,6 +26,36 @@ fi
 # ログレベル
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
 
+# ログレベル文字列を数値に変換
+# 引数: ログレベル文字列（ERROR/WARN/INFO/DEBUG、大文字小文字を区別しない）
+# 戻り値: 対応する数値（0-3）を標準出力に出力
+#   ERROR → 0, WARN → 1, INFO → 2, DEBUG → 3
+#   無効な入力の場合はデフォルトでINFO（2）を返す
+parse_log_level() {
+  local level="${1:-INFO}"
+  # 大文字に正規化
+  level=$(echo "$level" | tr '[:lower:]' '[:upper:]')
+
+  case "$level" in
+    ERROR)
+      echo "0"
+      ;;
+    WARN|WARNING)
+      echo "1"
+      ;;
+    INFO)
+      echo "2"
+      ;;
+    DEBUG)
+      echo "3"
+      ;;
+    *)
+      # 無効な入力の場合はデフォルトでINFO（2）
+      echo "2"
+      ;;
+  esac
+}
+
 # エラーログ
 log_error() {
   echo -e "${COLOR_RED}❌ Error:${COLOR_RESET} $*" >&2
