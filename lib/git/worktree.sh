@@ -74,7 +74,7 @@ generate_branch_name() {
 
   # ブランチ名: feat/task-name__worker-id (小文字)
   local branch_name="${BRANCH_PREFIX}/${task_name}__${worker_id}"
-  echo "${branch_name,,}" # 小文字に変換
+  echo "$branch_name" | tr '[:upper:]' '[:lower:]' # 小文字に変換 (Bash 3.2互換)
 }
 
 # Workerの作業完了後のクリーンアップ

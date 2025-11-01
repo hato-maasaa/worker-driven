@@ -23,8 +23,9 @@ extract_markdown_body() {
     return 1
   fi
 
-  # 最初の---以降、2番目の---以降を出力
-  sed '1,/^---$/d' "$file" | sed '1,/^---$/d'
+  # frontmatterをスキップして本文を抽出
+  # 最初の---から2番目の---まではfrontmatter、その後が本文
+  awk '/^---$/{c++; next} c>=2' "$file"
 }
 
 # フロントマターから値を取得

@@ -20,6 +20,10 @@ run_task() {
   local task_json
   task_json=$(parse_task_file "$task_file")
 
+  # デバッグ: parse_task_fileの生出力を保存
+  echo "$task_json" > /tmp/wkd-parse-task-output.json
+  log_debug "parse_task_file出力を保存: /tmp/wkd-parse-task-output.json"
+
   if [[ -z "$task_json" ]]; then
     log_error "タスクファイルの解析に失敗しました"
     return 1
@@ -30,13 +34,20 @@ run_task() {
   local task_description
   local epic_id
 
-  task_id=$(echo "$task_json" | jq -r '.id // empty')
+  task_id=$(echo "$task_json" | jq -r '.task // empty')
   task_title=$(echo "$task_json" | jq -r '.title // empty')
   task_description=$(echo "$task_json" | jq -r '.description // empty')
-  epic_id=$(echo "$task_json" | jq -r '.epicId // empty')
+  epic_id=$(echo "$task_json" | jq -r '.epic // empty')
+
+  # デバッグ出力
+  log_debug "task_json: ${task_json}"
+  log_debug "task_id: ${task_id}"
+  log_debug "task_title: ${task_title}"
 
   if [[ -z "$task_id" ]] || [[ -z "$task_title" ]]; then
     log_error "タスクIDまたはタイトルが取得できませんでした"
+    log_debug "task_json内容:"
+    echo "$task_json" | jq . >&2
     return 1
   fi
 
@@ -46,42 +57,45 @@ run_task() {
   log_step "Claude Code Plan agentでワーカーを分割中..."
 
   local plan_prompt
-  plan_prompt=$(cat <<EOF
-あなたは開発タスクをさらに細かいワーカー単位に分割する専門家です。
-以下のタスクを分析し、並列実行可能な具体的なワーカー作業に分割してください。
+  plan_prompt=$(cat <<'EOF_PROMPT'
+IMPORTANT: You must respond ONLY with valid JSON. Do not include any explanatory text, markdown formatting, or commentary outside the JSON structure.
 
-# Task: ${task_title}
+Task: Analyze the following task and split it into smaller, parallelizable worker units.
 
-${task_description}
+Task Title: ${TASK_TITLE}
 
-# 出力形式
+Task Description:
+${TASK_DESCRIPTION}
 
-以下のJSON形式で出力してください:
-
-\`\`\`json
+Required JSON Output Format:
 {
   "workers": [
     {
       "id": "WRK-001",
-      "title": "ワーカータイトル",
-      "prompt": "Claude Codeに渡す具体的な指示",
+      "title": "Worker title",
+      "prompt": "Specific instructions for Claude Code",
       "files": ["path/to/file1.ts", "path/to/file2.ts"],
       "dependencies": []
     }
   ]
 }
-\`\`\`
 
-# 要件
+Requirements:
+1. Each worker must be independently executable (assume parallel execution)
+2. Worker IDs follow format: WRK-001, WRK-002, etc.
+3. prompt field contains specific implementation instructions that Claude Code can execute directly
+4. files array lists target files to modify or create
+5. Include dependencies array with prerequisite worker IDs if needed
+6. Target ${MAX_WORKERS:-5} workers or less
 
-1. 各ワーカーは独立して実行可能であること（並列実行を想定）
-2. ワーカーIDは WRK-001, WRK-002 のように連番
-3. promptは具体的な実装指示で、Claude Codeがそのまま実行できる内容
-4. filesは変更対象ファイルのリスト（新規作成含む）
-5. 依存関係がある場合はdependenciesに先行ワーカーIDを記載
-6. ワーカー数は1〜${MAX_WORKERS:-5}個を目安にすること
-EOF
+Output ONLY the JSON object. No markdown code blocks, no explanations, just the JSON.
+EOF_PROMPT
 )
+
+  # Replace placeholders
+  plan_prompt="${plan_prompt//\$\{TASK_TITLE\}/$task_title}"
+  plan_prompt="${plan_prompt//\$\{TASK_DESCRIPTION\}/$task_description}"
+  plan_prompt="${plan_prompt//\$\{MAX_WORKERS\}/${MAX_WORKERS:-5}}"
 
   local plan_output
   plan_output=$(execute_claude_plan "$plan_prompt" 2>&1)
@@ -92,6 +106,10 @@ EOF
     return 1
   fi
 
+  # デバッグ: Claudeの生出力を保存
+  echo "$plan_output" > /tmp/wkd-claude-workers-output.txt
+  log_debug "Claude出力を保存: /tmp/wkd-claude-workers-output.txt"
+
   # JSON部分を抽出
   local workers_json
   workers_json=$(echo "$plan_output" | sed -n '/```json/,/```/p' | sed '1d;$d')
@@ -100,10 +118,17 @@ EOF
     workers_json="$plan_output"
   fi
 
+  # デバッグ: 抽出されたJSONを保存
+  echo "$workers_json" > /tmp/wkd-workers-json.txt
+  log_debug "抽出JSON を保存: /tmp/wkd-workers-json.txt"
+
   # JSONの妥当性チェック
   if ! echo "$workers_json" | jq empty 2>/dev/null; then
     log_error "Claude Codeからの出力がJSON形式ではありません"
-    log_debug "出力: ${plan_output}"
+    log_debug "出力の最初の10行:"
+    echo "$workers_json" | head -10 | while IFS= read -r line; do
+      log_debug "  $line"
+    done
     return 1
   fi
 
@@ -435,39 +460,4 @@ ${worker_title}
   return 0
 }
 
-# タスクファイルをパース（parse_epic_fileと同様のロジック）
-parse_task_file() {
-  local file="$1"
-
-  if [[ ! -f "$file" ]]; then
-    return 1
-  fi
-
-  local frontmatter
-  frontmatter=$(extract_frontmatter "$file")
-
-  # YAMLからJSON変換
-  local id title description epic_id
-
-  if has_yq; then
-    id=$(echo "$frontmatter" | yq eval '.id // ""' -)
-    title=$(echo "$frontmatter" | yq eval '.title // ""' -)
-    description=$(echo "$frontmatter" | yq eval '.description // ""' -)
-    epic_id=$(echo "$frontmatter" | yq eval '.epicId // ""' -)
-  else
-    id=$(echo "$frontmatter" | grep "^id:" | sed 's/^id: *//' | tr -d '"')
-    title=$(echo "$frontmatter" | grep "^title:" | sed 's/^title: *//' | tr -d '"')
-    description=$(echo "$frontmatter" | grep "^description:" | sed 's/^description: *//' | tr -d '"')
-    epic_id=$(echo "$frontmatter" | grep "^epicId:" | sed 's/^epicId: *//' | tr -d '"')
-  fi
-
-  # JSON出力
-  jq -n \
-    --arg id "$id" \
-    --arg title "$title" \
-    --arg desc "$description" \
-    --arg epic "$epic_id" \
-    '{id: $id, title: $title, description: $desc, epicId: $epic}'
-
-  return 0
-}
+# parse_task_file は lib/core/parser.sh で定義されているため、ここでは定義不要
