@@ -61,12 +61,13 @@ create_tasks_from_epic() {
   local epic_title
   local epic_content
 
-  epic_id=$(echo "$epic_json" | jq -r '.id // empty')
+  epic_id=$(echo "$epic_json" | jq -r '.epic // empty')
   epic_title=$(echo "$epic_json" | jq -r '.title // empty')
-  epic_content=$(echo "$epic_json" | jq -r '.content // empty')
+  epic_content=$(echo "$epic_json" | jq -r '.description // empty')
 
   if [[ -z "$epic_id" ]] || [[ -z "$epic_title" ]]; then
     log_error "Epic IDまたはタイトルが取得できませんでした"
+    log_debug "Epic JSON: ${epic_json}"
     return 1
   fi
 

@@ -60,15 +60,29 @@ parse_epic_file() {
     return 1
   fi
 
+  # ファイル名からepic名を取得（デフォルト値として使用）
+  local filename
+  filename=$(basename "$epic_file" .md)
+
+  # Frontmatterを試す（なくてもOK）
   local frontmatter
   frontmatter=$(extract_frontmatter "$epic_file")
 
+  # Markdown本文を取得
   local markdown
   markdown=$(extract_markdown_body "$epic_file")
 
-  # 主要な値を抽出
+  # Frontmatterがない場合、ファイル全体をmarkdownとして扱う
+  if [[ -z "$markdown" ]] || [[ $(echo "$markdown" | wc -l) -lt 2 ]]; then
+    markdown=$(cat "$epic_file")
+  fi
+
+  # 主要な値を抽出（Frontmatterがあれば使用、なければデフォルト）
   local epic_name
   epic_name=$(get_frontmatter_value "$frontmatter" "epic")
+  if [[ -z "$epic_name" ]]; then
+    epic_name="$filename"
+  fi
 
   local priority
   priority=$(get_frontmatter_value "$frontmatter" "priority")
@@ -79,12 +93,26 @@ parse_epic_file() {
   # Markdownセクションを抽出
   local title
   title=$(echo "$markdown" | grep -m1 '^# ' | sed 's/^# //')
+  if [[ -z "$title" ]]; then
+    title="$filename"
+  fi
 
+  # セクションを抽出（存在すれば使用、なければ本文全体を説明として使用）
   local description
   description=$(extract_section "$markdown" "概要")
+  if [[ -z "$description" ]]; then
+    description=$(extract_section "$markdown" "問題")
+  fi
+  if [[ -z "$description" ]]; then
+    # セクションがない場合、本文全体を使用
+    description="$markdown"
+  fi
 
   local acceptance_criteria
   acceptance_criteria=$(extract_section "$markdown" "受け入れ条件")
+  if [[ -z "$acceptance_criteria" ]]; then
+    acceptance_criteria=$(extract_section "$markdown" "修正依頼")
+  fi
 
   local references
   references=$(extract_section "$markdown" "参考実装")
