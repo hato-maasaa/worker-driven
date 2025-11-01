@@ -212,9 +212,10 @@ execute_claude_plan() {
 
   log_debug "Claude Code Plan agentを実行中..."
 
-  # Claude Code Plan agentを実行（--permission-mode plan を使用）
+  # Claude Codeを通常モードで実行（-pフラグでプロンプトを渡す）
+  # plan modeは対話的になるため使用しない
   local output
-  if output=$("$CLAUDE_COMMAND" --permission-mode plan -p "$prompt" 2>&1); then
+  if output=$("$CLAUDE_COMMAND" -p "$prompt" 2>&1); then
     echo "$output"
     return 0
   else

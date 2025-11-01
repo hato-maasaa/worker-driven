@@ -81,45 +81,48 @@ create_tasks_from_epic() {
   log_step "Claude Code Plan agentでタスクを分割中..."
 
   local plan_prompt
-  plan_prompt=$(cat <<EOF
-あなたは開発タスクを分割する専門家です。
-以下のEpicを分析し、実装可能な具体的なタスクに分割してください。
+  plan_prompt=$(cat <<'EOF_PROMPT'
+IMPORTANT: You must respond ONLY with valid JSON. Do not include any explanatory text, markdown formatting, or commentary outside the JSON structure.
 
-# Epic: ${epic_title}
+Task: Analyze the following Epic and split it into implementable tasks.
 
-${epic_content}
+Epic Title: ${EPIC_TITLE}
 
-# 出力形式
+Epic Content:
+${EPIC_CONTENT}
 
-以下のJSON形式で出力してください:
-
-\`\`\`json
+Required JSON Output Format:
 {
   "tasks": [
     {
       "id": "TASK-001",
-      "title": "タスクタイトル",
-      "description": "タスクの詳細説明",
+      "title": "Task title",
+      "description": "Detailed task description",
       "acceptance_criteria": [
-        "受け入れ基準1",
-        "受け入れ基準2"
+        "Acceptance criterion 1",
+        "Acceptance criterion 2"
       ],
       "dependencies": [],
       "estimated_lines": 100
     }
   ]
 }
-\`\`\`
 
-# 要件
+Requirements:
+1. Each task must be independently implementable
+2. Task IDs follow format: TASK-001, TASK-002, etc.
+3. Each task should target ${MAX_CHANGED_LINES:-400} lines or less
+4. Include dependencies array with prerequisite task IDs if needed
+5. Acceptance criteria must be specific and verifiable
 
-1. 各タスクは独立して実装可能であること
-2. タスクIDは TASK-001, TASK-002 のように連番
-3. 各タスクの変更行数は${MAX_CHANGED_LINES:-400}行以内を目安にすること
-4. 依存関係がある場合はdependenciesに先行タスクIDを記載
-5. 受け入れ基準は具体的かつ検証可能であること
-EOF
+Output ONLY the JSON object. No markdown code blocks, no explanations, just the JSON.
+EOF_PROMPT
 )
+
+  # Replace placeholders
+  plan_prompt="${plan_prompt//\$\{EPIC_TITLE\}/$epic_title}"
+  plan_prompt="${plan_prompt//\$\{EPIC_CONTENT\}/$epic_content}"
+  plan_prompt="${plan_prompt//\$\{MAX_CHANGED_LINES\}/${MAX_CHANGED_LINES:-400}}"
 
   local plan_output
   plan_output=$(execute_claude_plan "$plan_prompt" 2>&1)
