@@ -25,30 +25,66 @@ fi
 
 # ログレベル
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
+CURRENT_LOG_LEVEL="${CURRENT_LOG_LEVEL:-INFO}"
+
+# ログレベルを数値に変換
+get_log_level_value() {
+  local level="$1"
+  case "$level" in
+    ERROR) echo 1 ;;
+    WARN) echo 2 ;;
+    INFO) echo 3 ;;
+    DEBUG) echo 4 ;;
+    *) echo 3 ;; # デフォルトはINFO
+  esac
+}
+
+# ログレベルチェック関数
+should_log() {
+  local message_level="$1"
+  local current_level="${CURRENT_LOG_LEVEL:-INFO}"
+
+  local message_value
+  local current_value
+
+  message_value=$(get_log_level_value "$message_level")
+  current_value=$(get_log_level_value "$current_level")
+
+  # メッセージレベルが現在のレベル以下なら出力
+  [[ $message_value -le $current_value ]]
+}
 
 # エラーログ
 log_error() {
-  echo -e "${COLOR_RED}❌ Error:${COLOR_RESET} $*" >&2
+  if should_log "ERROR"; then
+    echo -e "${COLOR_RED}❌ Error:${COLOR_RESET} $*" >&2
+  fi
 }
 
 # 警告ログ
 log_warn() {
-  echo -e "${COLOR_YELLOW}⚠️  Warning:${COLOR_RESET} $*" >&2
+  if should_log "WARN"; then
+    echo -e "${COLOR_YELLOW}⚠️  Warning:${COLOR_RESET} $*" >&2
+  fi
 }
 
 # 情報ログ
 log_info() {
-  echo -e "${COLOR_BLUE}ℹ️  ${COLOR_RESET}$*"
+  if should_log "INFO"; then
+    echo -e "${COLOR_BLUE}ℹ️  ${COLOR_RESET}$*"
+  fi
 }
 
 # 成功ログ
 log_success() {
-  echo -e "${COLOR_GREEN}✓${COLOR_RESET} $*"
+  if should_log "INFO"; then
+    echo -e "${COLOR_GREEN}✓${COLOR_RESET} $*"
+  fi
 }
 
 # デバッグログ
 log_debug() {
-  if [[ "$LOG_LEVEL" == "DEBUG" ]]; then
+  if should_log "DEBUG"; then
     echo -e "${COLOR_GRAY}🔍 Debug:${COLOR_RESET} $*" >&2
   fi
 }
