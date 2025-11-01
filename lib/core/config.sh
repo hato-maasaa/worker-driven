@@ -130,16 +130,29 @@ load_config() {
 
 # 設定の検証
 validate_config() {
-  local errors=()
+  # グローバル配列変数を初期化
+  VALIDATION_ERRORS=()
 
-  # 必須ディレクトリの確認
-  if [[ ! -d "$TASKS_EPICS_DIR" ]]; then
-    log_debug "Epic ディレクトリが存在しません: ${TASKS_EPICS_DIR}"
+  # 必須フィールドの存在確認と空チェック
+  if [[ -z "${CONFIG_GITHUB_TOKEN:-}" ]]; then
+    VALIDATION_ERRORS+=("CONFIG_GITHUB_TOKEN: GitHub トークンが設定されていません")
   fi
 
-  # Claude Codeコマンドの確認
-  if ! command -v "$CLAUDE_COMMAND" >/dev/null 2>&1; then
-    log_debug "Claude Code CLI が見つかりません: ${CLAUDE_COMMAND}"
+  if [[ -z "${CONFIG_GITHUB_REPO:-}" ]]; then
+    VALIDATION_ERRORS+=("CONFIG_GITHUB_REPO: GitHub リポジトリが設定されていません")
+  fi
+
+  if [[ -z "${CONFIG_WORKTREE_BASE_DIR:-}" ]]; then
+    VALIDATION_ERRORS+=("CONFIG_WORKTREE_BASE_DIR: Worktree ベースディレクトリが設定されていません")
+  fi
+
+  if [[ -z "${CONFIG_TASKS_DIR:-}" ]]; then
+    VALIDATION_ERRORS+=("CONFIG_TASKS_DIR: タスクディレクトリが設定されていません")
+  fi
+
+  # エラーがある場合は1、ない場合は0を返す
+  if [[ ${#VALIDATION_ERRORS[@]} -gt 0 ]]; then
+    return 1
   fi
 
   return 0
