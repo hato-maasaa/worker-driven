@@ -285,8 +285,19 @@ EOF
 
 Co-Authored-By: Claude <noreply@anthropic.com>' && git push -u origin HEAD)"
 
+    # PR作成コマンド（メタデータから情報を取得）
+    local pr_create_cmd="if command -v gh >/dev/null 2>&1; then WORKER_TITLE=\$(jq -r '.title' '${metadata_path}'); WORKER_ID=\$(jq -r '.workerId' '${metadata_path}'); TASK_ID=\$(jq -r '.taskId' '${metadata_path}'); EPIC_ID=\$(jq -r '.epicId' '${metadata_path}'); WORKER_PROMPT=\$(jq -r '.prompt' '${metadata_path}'); gh pr create --title \"feat: \${WORKER_TITLE} (\${WORKER_ID})\" --body \"## Summary
+\${WORKER_PROMPT}
+
+## Related
+- Epic: \${EPIC_ID}
+- Task: \${TASK_ID}
+- Worker: \${WORKER_ID}
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)\" --base main || echo 'PR already exists or gh command failed'; fi"
+
     local claude_command
-    claude_command="cd '${worktree_dir}' && ${CLAUDE_COMMAND} -p --dangerously-skip-permissions \"${worker_prompt}\" && ${update_status_cmd} && ${git_commit_push_cmd} || echo '❌ Worker failed'"
+    claude_command="cd '${worktree_dir}' && ${CLAUDE_COMMAND} -p --dangerously-skip-permissions \"${worker_prompt}\" && ${update_status_cmd} && ${git_commit_push_cmd} && ${pr_create_cmd} || echo '❌ Worker failed'"
 
     # tmuxペインにコマンドを送信
     send_to_pane "$session_name" "$i" "$claude_command"
