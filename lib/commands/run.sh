@@ -268,9 +268,11 @@ EOF
       continue
     fi
 
-    # Claude Codeをヘッドレスモードで実行するコマンドを生成
+    # Claude Codeを非インタラクティブモードで実行するコマンドを生成
+    # -p: print mode (非インタラクティブ)
+    # --dangerously-skip-permissions: 自動実行のため権限チェックをスキップ
     local claude_command
-    claude_command="cd '${worktree_dir}' && ${CLAUDE_COMMAND} --headless \"${worker_prompt}\""
+    claude_command="cd '${worktree_dir}' && ${CLAUDE_COMMAND} -p --dangerously-skip-permissions \"${worker_prompt}\""
 
     # tmuxペインにコマンドを送信
     send_to_pane "$session_name" "$i" "$claude_command"
