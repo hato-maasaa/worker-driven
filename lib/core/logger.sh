@@ -23,7 +23,16 @@ else
   COLOR_GRAY=""
 fi
 
-# ログレベル
+# ログレベル定数
+LOG_LEVEL_ERROR=0
+LOG_LEVEL_WARN=1
+LOG_LEVEL_INFO=2
+LOG_LEVEL_DEBUG=3
+
+# 現在のログレベル（デフォルトはINFO）
+CURRENT_LOG_LEVEL=$LOG_LEVEL_INFO
+
+# 互換性のための従来の変数
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
 
 # エラーログ
@@ -123,3 +132,41 @@ confirm() {
       ;;
   esac
 }
+
+# ログレベル文字列を数値に変換
+# 引数: ログレベル文字列 (ERROR, WARN, INFO, DEBUG)
+# 戻り値: ログレベル数値 (0-3)、無効な場合はLOG_LEVEL_INFO
+parse_log_level() {
+  local level
+  level=$(echo "$1" | tr '[:lower:]' '[:upper:]')  # 大文字に変換
+
+  case "$level" in
+    ERROR)
+      echo $LOG_LEVEL_ERROR
+      ;;
+    WARN|WARNING)
+      echo $LOG_LEVEL_WARN
+      ;;
+    INFO)
+      echo $LOG_LEVEL_INFO
+      ;;
+    DEBUG)
+      echo $LOG_LEVEL_DEBUG
+      ;;
+    *)
+      echo $LOG_LEVEL_INFO
+      ;;
+  esac
+}
+
+# WKD_LOG_LEVEL環境変数からログレベルを初期化
+init_log_level() {
+  if [[ -n "${WKD_LOG_LEVEL:-}" ]]; then
+    CURRENT_LOG_LEVEL=$(parse_log_level "$WKD_LOG_LEVEL")
+  else
+    CURRENT_LOG_LEVEL=$LOG_LEVEL_INFO
+  fi
+}
+
+# logger.shがsourceされた際に自動的にログレベルを初期化
+init_log_level
