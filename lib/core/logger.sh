@@ -23,12 +23,41 @@ else
   COLOR_GRAY=""
 fi
 
-# ログレベル
+# ログレベル定義
+declare -A LOG_LEVELS=(
+  ["DEBUG"]=0
+  ["INFO"]=1
+  ["WARN"]=2
+  ["ERROR"]=3
+  ["NONE"]=4
+)
+
+# 現在のログレベル（環境変数CURRENT_LOG_LEVELまたはデフォルトINFO）
+CURRENT_LOG_LEVEL="${CURRENT_LOG_LEVEL:-INFO}"
+
+# 旧互換性のため
 LOG_LEVEL="${LOG_LEVEL:-INFO}"
+
+# ログレベルチェック関数
+should_log() {
+  local level="$1"
+  local current_level_value="${LOG_LEVELS[$CURRENT_LOG_LEVEL]}"
+  local required_level_value="${LOG_LEVELS[$level]}"
+
+  # ログレベルが定義されていない場合は出力しない
+  if [[ -z "$current_level_value" ]] || [[ -z "$required_level_value" ]]; then
+    return 1
+  fi
+
+  # 現在のログレベルが要求レベル以上なら出力
+  [[ "$current_level_value" -le "$required_level_value" ]]
+}
 
 # エラーログ
 log_error() {
-  echo -e "${COLOR_RED}❌ Error:${COLOR_RESET} $*" >&2
+  if should_log "ERROR"; then
+    echo -e "${COLOR_RED}❌ Error:${COLOR_RESET} $*" >&2
+  fi
 }
 
 # 警告ログ
