@@ -71,9 +71,17 @@ worktree_exists() {
 generate_branch_name() {
   local worker_id="$1"
   local task_name="${2:-task}"
+  local epic_name="${3:-}"
 
-  # ブランチ名: feat/task-name__worker-id (小文字)
-  local branch_name="${BRANCH_PREFIX}/${task_name}__${worker_id}"
+  # ブランチ名: feat/epic-name__task-name__worker-id (小文字)
+  # epic名がある場合は含める（衝突を防ぐため）
+  local branch_name
+  if [[ -n "$epic_name" ]]; then
+    branch_name="${BRANCH_PREFIX}/${epic_name}__${task_name}__${worker_id}"
+  else
+    branch_name="${BRANCH_PREFIX}/${task_name}__${worker_id}"
+  fi
+
   echo "$branch_name" | tr '[:upper:]' '[:lower:]' # 小文字に変換 (Bash 3.2互換)
 }
 

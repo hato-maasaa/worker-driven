@@ -174,9 +174,9 @@ EOF_PROMPT
     worker_prompt=$(echo "$worker_data" | jq -r '.prompt')
     worker_files=$(echo "$worker_data" | jq -r '.files[]' 2>/dev/null || echo "")
 
-    # ブランチ名を生成
+    # ブランチ名を生成（epic-id__task-id__worker-id 形式で衝突を防ぐ）
     local branch_name
-    branch_name=$(generate_branch_name "$worker_id" "$task_id")
+    branch_name=$(generate_branch_name "$worker_id" "$task_id" "$epic_id")
 
     # worktreeを作成
     if ! create_worker_worktree "$worker_id" "$branch_name" "$DEFAULT_BRANCH"; then
