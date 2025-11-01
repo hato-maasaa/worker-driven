@@ -26,7 +26,7 @@ Epic（大タスク）から実装完了（PR作成）まで、以下を自動�
 - git ≥ 2.35 (git worktree対応)
 - jq (JSON処理)
 - gh CLI (GitHub操作)
-- Claude Code CLI (claude-code コマンド)
+- Claude Code CLI (claude コマンド)
 
 # オプション（推奨）
 - yq (YAML処理)
@@ -226,5 +226,5 @@ MIT License
 
 ## 🙏 参考資料
 
-- [Claude Code のセキュアな Bash 実行設定](https://wasabeef.jp/blog/claude-code-secure-bash)
-- [Claude Code 公式ドキュメント](https://docs.claude.com/en/docs/claude-code)
+- [Claude Code のセキュアな Bash 実行設定](https://wasabeef.jp/blog/claude-secure-bash)
+- [Claude Code 公式ドキュメント](https://docs.claude.com/en/docs/claude)

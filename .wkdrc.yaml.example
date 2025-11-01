@@ -15,7 +15,7 @@ tasks:
 
 # Claude Code設定
 claude:
-  command: claude-code
+  command: claude
   headless:
     enabled: true
     flags:

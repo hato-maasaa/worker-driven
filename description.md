@@ -39,7 +39,7 @@
 - jq (JSON処理)
 - gh CLI (GitHub操作)
 - yq (YAML処理、オプション)
-- Claude Code CLI (claude-code コマンド)
+- Claude Code CLI (claude コマンド)
 
 # インストール例（macOS）
 brew install tmux git jq gh yq
@@ -107,7 +107,7 @@ tasks:
 
 # Claude Code設定
 claude:
-  command: claude-code
+  command: claude
   headless:
     enabled: true
     flags:
@@ -153,7 +153,7 @@ steps:
   - kind: setup
     cmd: corepack enable && yarn --immutable
   - kind: generate
-    tool: claude-code
+    tool: claude
   - kind: typecheck
     cmd: yarn typecheck
   - kind: test
@@ -380,7 +380,7 @@ wkd dash
 
 ```bash
 # .workspaces/WRK-001/ 配下で実行
-claude-code \
+claude \
   --prompt "$(cat .workspaces/.workers/WRK-001.prompt.md)" \
   --dangerously-skip-permissions \
   --output-format stream-json
@@ -549,7 +549,7 @@ EOF
 
 ```yaml
 claude:
-  command: claude-code
+  command: claude
   settings:
     deny:
       # プロジェクト固有の禁止パターン
@@ -588,7 +588,7 @@ exit 0
 ```
 
 **参考資料：**
-- [Claude Code のセキュアな Bash 実行設定](https://wasabeef.jp/blog/claude-code-secure-bash)
+- [Claude Code のセキュアな Bash 実行設定](https://wasabeef.jp/blog/claude-secure-bash)
 
 ---
 
@@ -681,7 +681,7 @@ execute_claude_headless() {
   setup_claude_settings "$worker_dir"
 
   # Claude Code実行
-  claude-code \
+  claude \
     --prompt "$(cat "$prompt_file")" \
     --dangerously-skip-permissions \
     --output-format stream-json

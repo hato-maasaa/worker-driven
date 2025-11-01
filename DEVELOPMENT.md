@@ -276,7 +276,7 @@ description: JWTベースの認証システムを構築する
    - `yq`: 推奨（YAML処理、なくてもsed/grepで動作）
    - `tmux`: Worker並列実行に必須
    - `gh`: PR自動作成に必要（オプション）
-   - `claude-code`: AI連携に必須
+   - `claude`: AI連携に必須
 
 3. **Markdown titleの抽出**
    - `lib/core/parser.sh` の `extract_title()` が空文字を返す
@@ -358,7 +358,7 @@ git@github.com:hato-maasaa/worker-driven.git
 
 ### 優先度: 高
 1. **Claude Code CLIの動作確認**
-   - `claude-code --agent plan` コマンドの実際の動作を確認
+   - `claude --agent plan` コマンドの実際の動作を確認
    - Plan agentの出力形式を検証
    - execute_claude_plan() の調整が必要か確認
 
@@ -411,7 +411,7 @@ branchPrefix: feat
 
 # Claude Code設定
 claude:
-  command: claude-code
+  command: claude
   settings:
     deny:
       # プロジェクト固有の禁止パターン
@@ -470,7 +470,7 @@ brew install yq
 # パスを指定する場合
 # .wkdrc.yaml に記載
 claude:
-  command: /path/to/claude-code
+  command: /path/to/claude
 ```
 
 ### Workerが実行されない
@@ -484,7 +484,7 @@ claude:
 
 ### 参考にしたブログ
 - wasabeef: Claude Code セキュリティ設定
-  https://wasabeef.jp/blog/claude-code-secure-bash
+  https://wasabeef.jp/blog/claude-secure-bash
 
 ### Git worktree ドキュメント
 ```bash

@@ -14,7 +14,7 @@ NODE_VERSION="22"
 TASKS_DIR="./tasks"
 TASKS_EPICS_DIR="./tasks/epics"
 
-CLAUDE_COMMAND="claude-code"
+CLAUDE_COMMAND="claude"
 CLAUDE_HEADLESS_ENABLED="true"
 
 WORKSPACE_ROOT="./.workspaces"

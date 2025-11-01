@@ -103,11 +103,8 @@ execute_claude_headless() {
   local log_file="${log_dir}/claude-output.log"
   local error_log="${log_dir}/claude-error.log"
 
-  # Claude Code実行
-  "$CLAUDE_COMMAND" \
-    --prompt "$(cat "$prompt_file")" \
-    --dangerously-skip-permissions \
-    --output-format stream-json \
+  # Claude Code実行（-pフラグでプロンプトを渡す）
+  "$CLAUDE_COMMAND" -p "$(cat "$prompt_file")" \
     > "$log_file" 2> "$error_log"
 
   local exit_code=$?
@@ -215,20 +212,13 @@ execute_claude_plan() {
 
   log_debug "Claude Code Plan agentを実行中..."
 
-  # 一時ファイルにプロンプトを保存
-  local temp_prompt
-  temp_prompt=$(mktemp)
-  echo "$prompt" > "$temp_prompt"
-
-  # Claude Code Plan agentを実行
+  # Claude Code Plan agentを実行（--permission-mode plan を使用）
   local output
-  if output=$("$CLAUDE_COMMAND" --agent plan "$(cat "$temp_prompt")" 2>&1); then
-    rm -f "$temp_prompt"
+  if output=$("$CLAUDE_COMMAND" --permission-mode plan -p "$prompt" 2>&1); then
     echo "$output"
     return 0
   else
     local exit_code=$?
-    rm -f "$temp_prompt"
     log_error "Claude Code Plan agentの実行に失敗しました (exit code: ${exit_code})"
     echo "$output" >&2
     return $exit_code
