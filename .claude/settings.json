@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if git rev-parse --git-dir > /dev/null 2>&1; then git add -A && git diff --cached --quiet || (git commit -m 'feat: Worker作業完了\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>' && git push); fi",
+            "timeout": 60,
+            "description": "Auto-commit and push when worker session completes"
+          }
+        ]
+      }
+    ]
+  }
+}

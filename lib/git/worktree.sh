@@ -21,6 +21,14 @@ create_worker_worktree() {
   # ベースブランチから新しいブランチを作成してworktree追加
   if git worktree add -b "$branch_name" "$worktree_dir" "$base_branch" 2>/dev/null; then
     log_success "Worktreeを作成しました: ${worktree_dir}"
+
+    # Claude Code設定をworktreeにコピー
+    if [[ -f ".claude/settings.json" ]]; then
+      mkdir -p "${worktree_dir}/.claude"
+      cp ".claude/settings.json" "${worktree_dir}/.claude/settings.json"
+      log_debug "Claude Code設定をコピーしました"
+    fi
+
     return 0
   else
     log_error "Worktreeの作成に失敗しました: ${worker_id}"
